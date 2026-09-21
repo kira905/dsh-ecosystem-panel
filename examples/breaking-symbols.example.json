@@ -1,0 +1,9 @@
+{
+  "_comment": "已知断裂符号表示例：宿主主包某条线移除了哪些导出（插件若仍静态 import 就会在升级后启动崩）。本面板只把它作为**参考底表**展示，不做任何自动判定。默认表为空。",
+  "@scope/some-host-package": {
+    "removed": ["oldExportName", "anotherOldExport"],
+    "since": "x.y.z",
+    "replacement": "hostApi.doTheThing(...)",
+    "affected": ["example-plugin"]
+  }
+}

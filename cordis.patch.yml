@@ -1,0 +1,7 @@
+# dsh-ecosystem-panel bundle patch: mounts the read-only ecosystem overview
+# (plugin / patch / skill health). The node half (exports ".") serves
+# GET /api/dsh-ecosystem-panel/state; the `dsh.client` declaration makes the
+# browser half (exports "./client") load in the web GUI sidebar.
+- insert:
+    - id: ecosystem-panel
+      name: 'dsh-ecosystem-panel'

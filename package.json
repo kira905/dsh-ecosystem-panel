@@ -1,0 +1,57 @@
+{
+  "name": "dsh-ecosystem-panel",
+  "description": "Read-only ecosystem overview panel for a DSH instance: plugin bundles, cordis.patch inserts, patch health, skills, upgrade health and decoupling health. One tab per category. Zero runtime npm dependencies.",
+  "version": "0.4.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "engines": {
+      "dsh": ">=0.1.1-rc.1"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "verify": "node scripts/verify-source.mjs .",
+    "test": "node scripts/test-fixture.mjs",
+    "state": "node scripts/verify-state.mjs"
+  },
+  "peerDependencies": {},
+  "dependencies": {},
+  "keywords": [
+    "dsh",
+    "plugin",
+    "panel",
+    "diagnostics",
+    "read-only",
+    "health-check"
+  ],
+  "files": [
+    "lib/**/*.js",
+    "cordis.patch.yml",
+    "scripts/**/*.mjs",
+    "examples/**",
+    "docs/**",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "license": "AGPL-3.0-only"
+}

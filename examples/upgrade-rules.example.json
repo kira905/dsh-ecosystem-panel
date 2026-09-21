@@ -1,0 +1,28 @@
+{
+  "_comment": "升级规则表示例：包名 → { verdict, label, note }。verdict 只是**文案分类**（本面板不据此变色 —— 颜色一律来自档位 CLI 的判定）；label/note 直接显示在面板行上。默认表为空。",
+  "example-plugin": {
+    "verdict": "upgradable",
+    "label": "可升（升后需重打补丁）",
+    "note": "该包被你打过本地补丁，升级后必须重跑对应的 patch 脚本，否则补丁会静默消失。"
+  },
+  "another-plugin": {
+    "verdict": "blocked",
+    "label": "需先升宿主主包",
+    "note": "新版本依赖宿主主包新线才拆出的子包；主包不升级就不能单独升它。"
+  },
+  "frozen-plugin": {
+    "verdict": "frozen",
+    "label": "已转自建 fork，升级 = 降级",
+    "note": "本地版本是自维护 fork，npm 上的版本更旧，不要升。"
+  },
+  "local-only-plugin": {
+    "verdict": "self",
+    "label": "本地包（无 npm 来源）",
+    "note": "本地开发或私有分发，不涉升版。"
+  },
+  "some-host-builtin": {
+    "verdict": "internal",
+    "label": "宿主内置，随主包",
+    "note": "远端 npm latest 标签可能落后于宿主线，忽略远端提示。"
+  }
+}

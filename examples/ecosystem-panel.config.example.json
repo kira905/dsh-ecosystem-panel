@@ -1,0 +1,28 @@
+{
+  "_comment": "dsh-ecosystem-panel 配置示例。用法：拷成自己的路径，然后设 DSH_ECOSYSTEM_PANEL_CONFIG=<该路径>；同样的键也可以直接用环境变量给（见 README 配置表）。所有键都是可选的 —— 不设就走自动探测 / 内置默认。",
+  "home": "<DSH 数据根。默认 os.homedir()/.dsh；环境变量 DSH_ECOSYSTEM_PANEL_HOME 或 DSH_HOME 同效>",
+  "profile": "web",
+  "webUrl": "http://127.0.0.1:3080",
+  "toolsDir": "<外部工具目录（本面板要复用的体检脚本所在目录）。不设时，依赖它的三类体检会显式降级为「不可判定」，不会假绿>",
+  "mainNm": "<宿主主包 node_modules 路径。默认按全局 npm 布局自动探测；探测不到即判「不可用」>",
+  "cacheFile": "<升级体检的本地缓存文件。默认 <home>/ecosystem-panel-upgrade-cache.json>",
+  "scripts": {
+    "decoupling": "<解耦检查脚本。默认 <toolsDir>/check-decoupling.mjs>",
+    "triageCli": "<升级档位判定只读 CLI。默认 <toolsDir>/upgrade-triage-cli.mjs>；不设时所有插件行的档位显示「不可用」，不猜颜色>",
+    "registryAudit": "<跨表准入校验器（可选类目）。默认 <toolsDir>/registry-audit.mjs>",
+    "hostAdapterSync": "<适配层一致性校验器（可选项）。默认 <toolsDir>/sync-host-adapter.mjs>"
+  },
+  "patchManifest": "<也可以直接内联补丁清单（数组），形状见 patch-manifest.example.json；默认空 = 该组显示「未配置」而不是 0 个补丁>",
+  "patchManifestFile": "<或者给一个 JSON 文件路径，效果相同>",
+  "upgradeRulesFile": "<升级规则表 JSON 路径，形状见 upgrade-rules.example.json>",
+  "breakingSymbolsFile": "<已知断裂符号表 JSON 路径，形状见 breaking-symbols.example.json>",
+  "labelsFile": "<包名 → 一句话简介 的 JSON 路径，形状见 labels.example.json>",
+  "disabledGroups": [],
+  "text": {
+    "title": "插件 · 技能生态状态",
+    "note": "<面板底部说明文案；不设则用内置中性文案>",
+    "tabs": {
+      "patches": "补丁健康"
+    }
+  }
+}

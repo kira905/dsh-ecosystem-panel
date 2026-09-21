@@ -1,0 +1,53 @@
+[
+  {
+    "id": "example-client-patch",
+    "title": "示例插件：某个客户端补丁",
+    "script": "patch-example-client.mjs",
+    "checks": [
+      { "pkg": "example-plugin", "rel": "lib/client.js", "contains": ["__PATCH_MARKER__"], "notContains": ["legacy-poll"] }
+    ]
+  },
+  {
+    "id": "example-global-target",
+    "title": "宿主主包内的补丁（target=global 时在宿主主包 node_modules 里找）",
+    "script": "patch-host-package.mjs",
+    "checks": [
+      { "target": "global", "pkg": "@deepseek-ai/dsh-subprocess-local", "rel": "lib/index.js", "contains": ["windowsHide: true"] }
+    ]
+  },
+  {
+    "id": "example-dir-file",
+    "title": "随包二进制存在性（special: 目录内必须有某后缀文件）",
+    "script": "patch-put-binary.mjs",
+    "special": {
+      "kind": "dir-has-file",
+      "pkg": "example-plugin",
+      "dir": "desktop",
+      "suffix": ".dll",
+      "label": "例：随包二进制文件"
+    }
+  },
+  {
+    "id": "example-no-sidecar",
+    "title": "数据目录不许有 -wal/-shm 残留（special: no-sidecar-files）",
+    "script": "patch-journal-mode.mjs",
+    "checks": [
+      { "pkg": "example-plugin", "rel": "lib/index.js", "contains": ["journal_mode = DELETE"] }
+    ],
+    "special": {
+      "kind": "no-sidecar-files",
+      "dir": "${HOME}/data",
+      "suffix": [".db-wal", ".db-shm"],
+      "label": "数据目录无 -wal/-shm 残留（字符串里可用 ${HOME} / ${PROFILE_NM} / ${MAIN_NM} 占位符）"
+    }
+  },
+  {
+    "id": "example-retired",
+    "title": "已退役条目：带 retired 的条目不参与体检（避免长期假红）",
+    "script": "patch-old-thing.mjs",
+    "retired": "示例：目标包已 fork 为自建，原补丁不再适用",
+    "checks": [
+      { "pkg": "example-plugin", "rel": "lib/index.js", "contains": ["something"] }
+    ]
+  }
+]
