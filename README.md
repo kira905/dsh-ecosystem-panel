@@ -124,7 +124,8 @@ DSH_ECOSYSTEM_PANEL_CONFIG=/path/to/my.config.json   # 指向你抄过去改的�
 | 宿主主包线 | 状态 | 依据 |
 |---|---|---|
 | `0.1.1-rc.2` | ✅ 已实测 | 同源代码在一个**隔离实例**（独立数据根 + 独立端口）上只读核对通过；另与带内嵌清单的旧版逐条比对判定一致（51 条零差异） |
-| `≥ 0.1.2` | ⚠️ 未实测 | 本插件只用「web server 服务名 + 标准 route 注册」这一处宿主接口，且服务名可用环境变量覆盖；升级主包后请跑一次 `scripts/verify-state.mjs` 确认 |
+| `0.1.5` 线（静态核对 `0.1.5-rc.1` / `0.1.5-rc.2`，2026-09-21） | ✅ **宿主面单一且已取证** | 唯一宿主符号是服务名 `webServer`（0.1.5 仍在，且可用 `DSH_ECOSYSTEM_PANEL_WEBSERVER_SERVICE` 覆盖）；客户端半**零 require**（不依赖任何包）。静态审计报告：《开源/兼容性静态审计-20260921》 |
+| ⚠️ 升级体检 / 解耦健康 两卡的**读数** | ⚠️ **未在 0.1.5 实例上校准** | 0.1.5 把客户端资源改成"名册制 + 合并 URL"（`dsh-client-modules`、`cordis.patch.yml` 68 条名册），两卡是否读全未验证 —— **最可能的表现是读数偏保守，不是崩溃** |
 | 其它 | ❓ 未知 | 需自测 |
 
 ## 7. 已知限制
@@ -168,7 +169,23 @@ node scripts/verify-state.mjs       # 对当前实例只读体检（打印六类
 `test-fixture.mjs` 会现场造一个最小数据根（假 profile / 假插件实体 / 假技能 / 四个外部工具 stub），
 断言六类都能跑出结果，并专门验证「缺数据必显式降级」。
 
-## 10. 许可
+## 10. 相关组件
+
+同属 DSH 生态的伴生组件，各自独立仓、独立版本、许可各自独立；它们都回链到同一份文档仓
+[`ops-handoff-design`](https://github.com/kira905/ops-handoff-design)
+（Gitee 镜像 <https://gitee.com/kira905/ops-handoff-design>）：
+
+| 组件仓 | 做什么 | 与本组件的关系 |
+|---|---|---|
+| `dsh-ecosystem-panel` | 只读生态总览面板 | **本仓** |
+| [`dsh-butler-archive`](https://github.com/kira905/dsh-butler-archive) | 会话归档管理（列表 / 预览 / 恢复 / 删除 + 可选自动归档） | 它是**本面板第 ③ 类的观察对象之一**：靠 `cordis.patch.yml` 的 insert 注册，实体缺失时本面板报 🔴 |
+| [`dsh-session-title-live`](https://github.com/kira905/dsh-session-title-live) | 会话标题跟着对话实时更新 | 同样靠 `cordis.patch.yml` 的 insert 注册（无 client 半）；「插件到底加载上了没有」由本面板第 ① 类回答 |
+| [`dsh-diagnostic-tools`](https://github.com/kira905/dsh-diagnostic-tools) | 诊断取证工具组：依赖闭包体检 + 会话图片附件对账 | 分工互补：本面板回答**「今天怎么样」**（持续、只读、三色），它回答**「具体坏在哪、怎么修」**（离线、可复跑、带修法与回滚清单）——两者都只诊断 |
+
+> 组件之间**没有代码依赖**，也不共享运行时 —— 之所以互指，是因为它们回答的是同一类人的同一批问题
+> （长期在自有机器上跑 agent：装得下、找得到、看得见、查得清）。谁装谁不装，互不影响。
+
+## 11. 许可
 
 **AGPL-3.0-only**（见 `LICENSE` 全文；`package.json` 的 `license` 字段同值）。
 以 AGPL 发布意味着：你可以自由使用、修改、再分发，但**通过网络向他人提供本软件的修改版时，
