@@ -1,5 +1,7 @@
 # dsh-ecosystem-panel
 
+> **English**: [README.en.md](./README.en.md)
+
 > 给 DSH 实例装一块**只读**的生态总览面板：插件有没有加载、补丁还在不在、技能 frontmatter 有没有写坏、
 > 依赖有没有升级风险 —— 一屏看完，🟢🟡🔴 三色。
 >
