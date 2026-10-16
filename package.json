@@ -1,7 +1,7 @@
 {
   "name": "dsh-ecosystem-panel",
   "description": "Read-only ecosystem overview panel for a DSH instance: plugin bundles, cordis.patch inserts, patch health, skills, upgrade health and decoupling health. One tab per category. Zero runtime npm dependencies.",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -33,7 +33,9 @@
     "test": "node scripts/test-fixture.mjs",
     "state": "node scripts/verify-state.mjs"
   },
-  "peerDependencies": {},
+  "peerDependencies": {
+    "@deepseek-ai/dsh": ">=0.2.0-rc.2 <0.3.0"
+  },
   "dependencies": {},
   "keywords": [
     "dsh",

@@ -147,9 +147,10 @@ DSH_ECOSYSTEM_PANEL_CONFIG=/path/to/my.config.json   # points at the copy you ed
 
 | Host package line | Status | Basis |
 |---|---|---|
-| `0.1.1-rc.2` | Yes — measured | The same source code was verified read-only on an **isolated instance** (separate data root + separate port); it was also compared entry by entry against an older version with the manifest built in, and the verdicts agreed (51 entries, zero differences) |
-| the `0.1.5` line (static check against `0.1.5-rc.1` / `0.1.5-rc.2`, 2026-09-21) | Yes — **single host surface, and it is documented** | The only host symbol is the service name `webServer` (still present in 0.1.5, and overridable with `DSH_ECOSYSTEM_PANEL_WEBSERVER_SERVICE`); the client half has **zero `require`** (it depends on no package). Static audit report: see the 2026-09-21 *Compatibility Static Audit* (《兼容性静态审计》) |
-| the **readings** of the upgrade-check / decoupling-health cards | Warning — **not calibrated on a 0.1.5 instance** | 0.1.5 turned client resources into a "roster + merged URL" scheme (`dsh-client-modules`, 68 roster entries in `cordis.patch.yml`); whether these two cards read it completely is unverified — **the most likely symptom is conservative readings, not a crash** |
+| **`0.2.0-rc.2`** | ✅ **Measured end-to-end (2026-10-16)** | **The baseline of the range this version declares in `peerDependencies`**: installed and exercised for real on an isolated instance (separate data root + port 3090) — `scripts/verify-state.mjs` (read-only, six check classes) **completed with rc=0**, reading that instance's data root and configuration provenance; the client half `client.js` appears in the plugin resource list of the instance's startup HTML |
+| later `0.2.x` | ⚠️ **Not measured; no promise** (declared upper bound `<0.3.0`) | — |
+| the `0.1.1-rc.2` / `0.1.5` lines | ⚠️ Historical static check (**this version no longer declares a 0.1.x range**) | see this section in `v0.4.3` and earlier |
+| the **readings** of the upgrade-check / decoupling-health cards | ⚠️ **Not calibrated on a 0.2.0 instance** | Since 0.1.5, client resources use a "roster + merged URL" scheme; whether these two cards read it completely is unverified — **the most likely symptom is conservative readings, not a crash** |
 | other | Unknown | self-test required |
 
 ## 7. Known limitations
@@ -211,5 +212,7 @@ Sibling components in the same DSH ecosystem — separate repositories, separate
 
 ## 11. License
 
-**AGPL-3.0-only** (see the full text in `LICENSE`; the `license` field in `package.json` carries the same value).
-Publishing under the AGPL means: you may use, modify and redistribute it freely, but **if you make a modified version available to others over a network, you must offer the corresponding source under the AGPL as well**.
+**AGPL-3.0-only plus a commercial license** (dual licensing; see the full text in `LICENSE`; the `license` field in `package.json` carries `AGPL-3.0-only`).
+
+- ⚠️ **The AGPL does not forbid commercial use by itself**: you may use, modify and redistribute it freely (commercial use included), but **if you make a modified version available to others over a network, you must offer the corresponding source under the AGPL as well**;
+- "+ a commercial license" = **dual licensing**: obtain a **commercial license** if you need it in a **closed-source** or **commercial** setting (where AGPL's copyleft obligations do not apply) — there is no public contact address yet, so **please reach out by opening an issue**.
