@@ -1,5 +1,5 @@
 {
-  "name": "dsh-ecosystem-panel",
+  "name": "@kira905/dsh-ecosystem-panel",
   "description": "Read-only ecosystem overview panel for a DSH instance: plugin bundles, cordis.patch inserts, patch health, skills, upgrade health and decoupling health. One tab per category. Zero runtime npm dependencies.",
   "version": "0.4.4",
   "type": "module",
@@ -15,7 +15,7 @@
   },
   "dsh": {
     "engines": {
-      "dsh": ">=0.1.1-rc.1"
+      "dsh": ">=0.2.0-rc.2 <0.3.0"
     },
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -43,7 +43,9 @@
     "panel",
     "diagnostics",
     "read-only",
-    "health-check"
+    "health-check",
+    "deepseek-harness",
+    "dsh-plugin"
   ],
   "files": [
     "lib/**/*.js",
@@ -56,5 +58,16 @@
     "CHANGELOG.md",
     "LICENSE"
   ],
-  "license": "AGPL-3.0-only"
+  "license": "AGPL-3.0-only",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kira905/dsh-ecosystem-panel.git"
+  },
+  "homepage": "https://github.com/kira905/dsh-ecosystem-panel#readme",
+  "bugs": {
+    "url": "https://github.com/kira905/dsh-ecosystem-panel/issues"
+  }
 }

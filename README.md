@@ -57,13 +57,14 @@ GET /api/dsh-ecosystem-panel/state
 ## 3. 安装三步
 
 ```bash
-# ① 把包放进 profile 的 node_modules（本仓 clone 到任意位置后拷进去，或直接 clone 到该目录）
-#    <数据根>/profiles/<profile>/node_modules/dsh-ecosystem-panel/
-git clone <本仓地址> "<数据根>/profiles/web/node_modules/dsh-ecosystem-panel"
+# ① 装进 profile（npm 包名：@kira905/dsh-ecosystem-panel）
+npm install @kira905/dsh-ecosystem-panel --prefix "<数据根>/profiles/web"
+#   离线 / 要改源码时：把本仓 clone 到
+#   "<数据根>/profiles/web/node_modules/@kira905/dsh-ecosystem-panel"
 
 # ② 注册：profile 的 package.json 里
-#      "dependencies": 加一条  "dsh-ecosystem-panel": "0.4.0"
-#      "dsh.profile.bundles": 数组里加 "dsh-ecosystem-panel"
+#      "dependencies": 加一条  "@kira905/dsh-ecosystem-panel": "0.4.4"
+#      "dsh.profile.bundles": 数组里加 "@kira905/dsh-ecosystem-panel"
 
 # ③ 重启 DSH（本插件没有热加载），然后打开 GUI：侧边栏齿轮上方应出现面板按钮
 ```
@@ -71,11 +72,12 @@ git clone <本仓地址> "<数据根>/profiles/web/node_modules/dsh-ecosystem-pa
 验证（不依赖 GUI）：
 
 ```bash
-node "<数据根>/profiles/web/node_modules/dsh-ecosystem-panel/scripts/verify-state.mjs"
+node "<数据根>/profiles/web/node_modules/@kira905/dsh-ecosystem-panel/scripts/verify-state.mjs"
 # 终端里应打印六类结果 + 配置来源自证
 ```
 
-> 本仓**只发 Release，不发 npm**：把目录放进 profile 即可，不需要 `npm install`（`dependencies` 为空）。
+> 包已发布到 npm（`@kira905/dsh-ecosystem-panel`）：`npm install` 只装它自己（`dependencies` 为空，
+> `js-yaml` 由宿主 profile 提供）。早期版本只发 Release、不进 npm；本版（`0.4.4`）起以 scope 包名发布。
 
 ## 4. 配置
 

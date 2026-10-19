@@ -1,6 +1,6 @@
 # dsh-ecosystem-panel
 
-> **Status**: distributed as repository Releases only — not published to npm
+> **Status**: published on npm as `@kira905/dsh-ecosystem-panel` (repository Releases remain available)
 > **Repository**: <https://github.com/kira905/dsh-ecosystem-panel> ｜ <https://gitee.com/kira905/dsh-ecosystem-panel>
 > **License**: AGPL-3.0-only — see [`LICENSE`](./LICENSE)
 > **中文**: [README.md](./README.md)
@@ -63,14 +63,14 @@ The panel meta also carries a **self-attestation of configuration provenance** (
 ## 3. Installing in three steps
 
 ```bash
-# 1. Put the package into the profile's node_modules (clone this repository anywhere and copy it in,
-#    or clone it straight into that directory)
-#    <data root>/profiles/<profile>/node_modules/dsh-ecosystem-panel/
-git clone <this repo> "<data root>/profiles/web/node_modules/dsh-ecosystem-panel"
+# 1. Install it into the profile (npm package name: @kira905/dsh-ecosystem-panel)
+npm install @kira905/dsh-ecosystem-panel --prefix "<data root>/profiles/web"
+#   offline / editing the source: clone this repository to
+#   "<data root>/profiles/web/node_modules/@kira905/dsh-ecosystem-panel"
 
 # 2. Register it in the profile's package.json:
-#      "dependencies": add  "dsh-ecosystem-panel": "0.4.0"
-#      "dsh.profile.bundles": add "dsh-ecosystem-panel" to the array
+#      "dependencies": add  "@kira905/dsh-ecosystem-panel": "0.4.4"
+#      "dsh.profile.bundles": add "@kira905/dsh-ecosystem-panel" to the array
 
 # 3. Restart DSH (this plugin has no hot reload), then open the GUI: the panel button should appear
 #    above the settings gear in the sidebar
@@ -79,11 +79,13 @@ git clone <this repo> "<data root>/profiles/web/node_modules/dsh-ecosystem-panel
 Verification (no GUI needed):
 
 ```bash
-node "<data root>/profiles/web/node_modules/dsh-ecosystem-panel/scripts/verify-state.mjs"
+node "<data root>/profiles/web/node_modules/@kira905/dsh-ecosystem-panel/scripts/verify-state.mjs"
 # the terminal should print the six classes plus the configuration-provenance self-attestation
 ```
 
-> This repository **ships Releases only, never npm**: drop the directory into the profile — no `npm install` is needed (`dependencies` is empty).
+> The package is published on npm (`@kira905/dsh-ecosystem-panel`): `npm install` only fetches the
+> package itself (`dependencies` is empty; `js-yaml` comes from the host profile). Earlier releases
+> shipped Releases only; this version (`0.4.4`) is the first to ship under the scoped npm name.
 
 ## 4. Configuration
 

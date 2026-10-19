@@ -4,4 +4,4 @@
 # browser half (exports "./client") load in the web GUI sidebar.
 - insert:
     - id: ecosystem-panel
-      name: 'dsh-ecosystem-panel'
+      name: '@kira905/dsh-ecosystem-panel'
