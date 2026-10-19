@@ -2,6 +2,20 @@
 
 本仓遵循 [SemVer](https://semver.org/lang/zh-CN/)：使用者可见的行为变化才升主版本/次版本，纯内部重构走修订号。
 
+## [0.4.5] - 2026-10-19
+
+### Fixed
+
+- 🔴 **侧边栏齿轮上方的面板按钮在 DSH 0.2.0 主包上不出现 —— 已修**。`lib/client.js` 的
+  `__ModuleLoader__.load({ id })` 登记的是旧名 `dsh-ecosystem-panel`，而 0.2.0 的
+  `dsh-client-modules` 按**条目 id = 包名**（`@kira905/dsh-ecosystem-panel`）找 factory ⇒
+  资源 HTTP 200、控制台报 `loaded without registering … via __ModuleLoader__.load`，
+  插件永不挂载。本版把登记 id 改成包名。
+  影响面：**只影响浏览器端是否挂载**；host 半（`/api/dsh-ecosystem-panel/state` 与只读体检脚本）
+  此前一直可用。
+- 说明：本仓 `lib/` 是**手写源码**（无构建步骤、无 `src/`），因此没有「改 src 再 build」这一步，
+  `lib/client.js` 就是源头。
+
 ## [0.4.4] - 2026-10-16
 
 ### Changed
