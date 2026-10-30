@@ -1,5 +1,27 @@
 # dsh-ecosystem-panel
 
+> **本仓装完即用**：`dsh plugin --profile <profile> add @kira905/dsh-ecosystem-panel` 一条命令，`dsh.bundle` 会让它自动挂进 profile 的组合列表，**不需要再手工写 `cordis.patch.yml`**。
+
+## 装完自检（三条只读验法）
+
+`<profile>` 换成你实际用的 profile（默认 `web`），`<数据根>` 换成你的 DSH 数据根（默认 `~/.dsh`）。
+
+```powershell
+# ① 组合树里有没有它（只读、约 0.6 秒、不启服务）
+dsh --profile <profile> --dump-config | Select-String "dsh-ecosystem-panel"
+# 期望：bundle 层出现一行 "# == <登记名>"、insert 层出现 "- id: <entry>"（问的都是「它挂上没」）；
+#       本仓包名 @kira905/dsh-ecosystem-panel —— 带 scope 装的写带 scope 名、老工装 / 手写的可能是裸名，两种都搜一遍
+#       ⚠️ 若该包会 insert 一行，还要数一遍"同一个 id 出现了几次"，必须 == 1
+
+# ② 组合列表里有没有它（只读）
+Get-Content <数据根>/profiles/<profile>/package.json | Select-String "@kira905/dsh-ecosystem-panel"
+# 期望：dependencies 与 dsh.profile.bundles 两处都有（CLI 类只需要 dependencies；bundles 里也可能写裸名 dsh-ecosystem-panel）
+
+# ③ 本仓是插件、没有命令入口 —— 跳过这一步（判据看 ① 与 ②）
+```
+
+---
+
 > **English**: [README.en.md](./README.en.md)
 
 > 给 DSH 实例装一块**只读**的生态总览面板：插件有没有加载、补丁还在不在、技能 frontmatter 有没有写坏、
@@ -53,6 +75,10 @@ GET /api/dsh-ecosystem-panel/state
   两类会显式显示「不可解析」，其它四类不受影响
 - 可选的三个/四个外部脚本（解耦检查、档位 CLI、跨表校验器、适配层一致性校验器）——**没有也能跑**，
   对应类目会降级；本仓不附带这些脚本（它们属于你自己的体检体系）
+
+> **手工装（旧版 / 离线用）** —— 下面三步是 0.4.5 之前的装法（`npm install --prefix` + 手写 profile `package.json` 两处）；
+> 现在有 `dsh.bundle`，一条 `dsh plugin --profile <profile> add @kira905/dsh-ecosystem-panel` 就够，见文首那段。
+> **两条路别混用**：混用会在组合里留下**同一件的两份登记**（`dsh.profile.bundles` 里同一包名两行，或 `cordis.patch.yml` 里同一个 id 两行；后者**不一定会报错**，光看日志发现不了）⇒ 判据 = 两处各数一遍，每一处必须 == 1。
 
 ## 3. 安装三步
 
