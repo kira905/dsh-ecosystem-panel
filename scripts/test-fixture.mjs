@@ -127,6 +127,10 @@ process.stdin.on('end', () => {
 // ---------------------------------------------------------------- 载入被测模块
 // ⚠️ 必须在 import 之前设好数据根：lib/state.js 的 YAML 依赖是在**模块加载期**经
 //    createRequire(<数据根>/profiles/<profile>/package.json) 解析的。
+// ⚠️ 夹具隔离三件套：USERPROFILE + HOME + DSH_HOME 一起指向沙箱（少一个就可能"写沙箱、发生产"）。
+process.env.USERPROFILE = sandbox;
+process.env.HOME = sandbox;
+process.env.DSH_HOME = sandbox;
 process.env.DSH_ECOSYSTEM_PANEL_HOME = home;
 const stateMod = await import(pathToFileURL(path.join(ROOT, 'lib', 'state.js')).href);
 ok('YAML 依赖在夹具数据根上解析成功（模块加载期）', stateMod.YAML_AVAILABLE === true, String(stateMod.YAML_ERROR ?? ''));
@@ -242,7 +246,28 @@ ok('停用组显示为「已按配置停用」提示项', s3.groups.patches.leng
 ok('停用组不计入 summary.total', s3.summary.total === s1.summary.total - 3, `${s3.summary.total} vs ${s1.summary.total}`);
 ok('停用组仍如实报出配置值', JSON.stringify(s3.meta.disabledGroups) === '["patches"]', JSON.stringify(s3.meta.disabledGroups));
 
-// ---------------------------------------------------------------- [4] 沙箱清理
+// ---------------------------------------------------------------- [4] boot 清单 401 ⇒ 判"未知"
+// 需要 token 的实例（`/?token=…`）会对服务端的无 cookie 抓取回 401，正文是 "authentication required"。
+// 这类响应**必须**当成"抓不到"（ids=null = 未知），不许当成"清单里 0 条"——后者会让每一行插件
+// 都报「boot 无 client 条目（疑似未加载/崩溃）」，纯属误报（隔离实例上实测踩到）。
+console.log('\n=== [4] boot 清单 HTTP 401 ⇒ 判「未知」，不许当成「未加载」 ===');
+const http = await import('node:http');
+const stub = http.createServer((req, res) => {
+  res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' });
+  res.end('dsh web authentication required: reopen the URL printed by dsh web.');
+});
+await new Promise((resolve) => stub.listen(0, '127.0.0.1', resolve));
+const stubUrl = `http://127.0.0.1:${stub.address().port}`;
+const s4 = await stateMod.buildState({ config: { ...baseCfg, webUrl: stubUrl } });
+await new Promise((resolve) => stub.close(resolve));
+ok('401 时 bootEntries = null（未知，不是「0 条」）', s4.meta.bootEntries === null, String(s4.meta.bootEntries));
+ok('401 被如实记进 bootError', /HTTP 401/.test(String(s4.meta.bootError)), String(s4.meta.bootError));
+const exRow4 = s4.groups.bundles.find((b) => b.name === 'example-plugin');
+ok('插件行退为「加载状态未知」（黄），不是「无 boot 条目」误报',
+  exRow4?.bootLoaded === null && /加载状态未知/.test((exRow4?.problems ?? []).join(' ')),
+  JSON.stringify(exRow4?.problems));
+
+// ---------------------------------------------------------------- [5] 沙箱清理
 try { fs.rmSync(sandbox, { recursive: true, force: true }); } catch { /* ignore */ }
 ok('夹具沙箱已清理', !fs.existsSync(sandbox));
 

@@ -26,6 +26,7 @@ This component is one implementation of the operational system described in
 (the fixed four questions that documentation repository defines):
 
 - **Why it exists and where its boundary is** → see *Design Discipline for a Read-Only Monitoring Panel* **§1 the questions the panel must answer**, **§2 display discipline (not probeable + reason)**; this component's six checks are one landing of that discipline
+- **How the first screen fetches (SWR / periodic warmup / sharding + single-flight + timeout budget + partial degradation)** → see *Design Discipline for a Read-Only Monitoring Panel* **§3.2 "response: sharding + TTL + single-flight + timeout budget"** (**TTL = 300 s** comes from that section: "reuse the existing five-minute rhythm, add no scheduled job"); the same section's rule "caching goes through TTL + single-flight only, no HTTP cache negotiation" is also why this implementation skips ETag/304 (see §5.1 below)
 - **Its compatibility window with the host** → see *Multi-machine Handoff and Cloud Relay* **§4.5 "compatibility requirements"** (see also §6 "Compatibility" in this README)
 - **This component's own pitfalls and measurements** → the "Known limitations" section of this README; see also *Design Discipline for a Read-Only Monitoring Panel* **§7 summary of design lessons** (where the three cases of "silently not reporting" came from)
 - **Documentation repository** → Gitee (mirror) <https://gitee.com/kira905/ops-handoff-design>
@@ -69,7 +70,7 @@ npm install @kira905/dsh-ecosystem-panel --prefix "<data root>/profiles/web"
 #   "<data root>/profiles/web/node_modules/@kira905/dsh-ecosystem-panel"
 
 # 2. Register it in the profile's package.json:
-#      "dependencies": add  "@kira905/dsh-ecosystem-panel": "0.4.4"
+#      "dependencies": add  "@kira905/dsh-ecosystem-panel": "0.5.0"
 #      "dsh.profile.bundles": add "@kira905/dsh-ecosystem-panel" to the array
 
 # 3. Restart DSH (this plugin has no hot reload), then open the GUI: the panel button should appear
@@ -112,6 +113,13 @@ Precedence (**per key, independently**): `explicit input (plugin config / call a
 | `DSH_ECOSYSTEM_PANEL_LABELS_FILE` | package name → one-line description, JSON | empty (an unregistered package simply has no description) |
 | `DSH_ECOSYSTEM_PANEL_DISABLED_GROUPS` | classes disabled as a whole (comma-separated) | all enabled |
 | `DSH_ECOSYSTEM_PANEL_WEBSERVER_SERVICE` | host web server service name | `webServer` |
+| `DSH_ECOSYSTEM_PANEL_TTL_MS` | the "expired" threshold (`fetchedAt` versus now) | `300000` (300 s, see §5.1) |
+| `DSH_ECOSYSTEM_PANEL_SOURCE_TIMEOUT_MS` | default per-source timeout | `2000` ms |
+| `DSH_ECOSYSTEM_PANEL_TOTAL_BUDGET_MS` | total budget for one first screen | `10000` ms |
+| `DSH_ECOSYSTEM_PANEL_SOURCE_TIMEOUTS` | per-source timeout overrides, e.g. `boot=1500,skills=500` | empty (per-source default) |
+| `DSH_ECOSYSTEM_PANEL_WARMUP` | periodic warmup switch (`1/true/on` to enable) | `0` (**off**: a resident background job costs resources, so it is not decided for you) |
+| `DSH_ECOSYSTEM_PANEL_WARMUP_MS` | warmup period (below 5000 is clamped up; 0/negative falls back to the default) | `300000` (300 s, same origin as the TTL) |
+| `DSH_ECOSYSTEM_PANEL_WARMUP_SOURCES` | which sources to warm (comma-separated; `*` = all) | `boot,bundles,inserts,patches,skills` (the five purely local ones) |
 
 ### 4.2 Configuration file and examples
 
@@ -141,9 +149,37 @@ DSH_ECOSYSTEM_PANEL_CONFIG=/path/to/my.config.json   # points at the copy you ed
 ## 5. Interface
 
 - Each of the six classes has its own tab; the small dot on a tab = the worst state of that class (red > yellow > green)
-- Clicking "refresh" fetches the data again; `GET /state?refresh=1` forces a fresh lookup of the npm latest version (otherwise the 24 h cache is used)
+- Clicking "refresh" fetches the data again; `GET /state?refresh=1` forces a fresh lookup of the npm latest version (otherwise the 24 h cache is used); `GET /state?refresh=all` drops the whole cache and refetches (for troubleshooting, not for everyday clicks)
 - Colours: green = healthy / yellow = at risk or not judgeable / red = abnormal (a missing patch insert entity, for instance)
 - The panel's title and footer note can be overridden by configuration (`text.title` / `text.note` / `text.tabs`, delivered by the server through `meta.ui`)
+
+### 5.1 Why the first screen does not spin (SWR / periodic warmup / sharded fetch)
+
+A read-only panel's first screen has three classic failure modes. This version pairs each with a remedy, and all the readings land on the single footer line:
+
+| Failure mode | Remedy | What you see |
+|---|---|---|
+| ① Data goes stale and you have to sit through a spinner | **SWR**: every data block carries `fetchedAt`; "expired" means `now - fetchedAt > threshold` (default **300 s**). When expired, the **old value is rendered first** while a refresh runs in the background | A banner at the top: "🕗 This is a stale value: skills is 320 s old (refreshing in the background, it will replace itself)". No spinner |
+| ② Every cold start computes from scratch (slow) | **Periodic warmup**: configurable period + three environment-variable ports; **off by default**; once on it primes immediately and then keeps the rhythm | Footer: "warmup on · 300 s · ran N times"; when off it says "warmup off" |
+| ③ One slow or broken source wastes the whole page | **Sharding + single-flight + timeout budget + partial degradation**: the source list is parameterised, one source has at most one in-flight fetch at a time, each source has its own timeout plus a page-wide budget, and a bad source **only breaks its own cell** | That cell becomes "not probeable: timeout / error / not configured / total budget exhausted" while everything else renders and the page still returns 200 |
+
+**Why 300 s**: it reuses the existing five-minute rhythm and **adds no scheduled job** — the source is §3.2 of *Design Discipline for a Read-Only Monitoring Panel* (see "Design basis"). Change `ttlMs` if you must, but do not write a second number somewhere in the code.
+
+**Why warmup is off by default**: warmup is a resident background activity that spends resources on your behalf, so it is not a decision to make for you. When enabled it primes only the **five purely local sources** (`boot / bundles / inserts / patches / skills`); `decoupling / upgrades / registry` run external scripts or query npm and are left out unless you name them (or pass `*` to warm everything).
+
+**A cold start must never return an empty shell**: with no old value at all, that request **blocks for the real value** and is recorded separately as `coldMiss` in the SLI (otherwise the hit rate would count cold starts as hits and the reading would be worthless). The footer always keeps the three buckets apart: `hit 12 (70.6%) · miss 3 · cold 2`.
+
+**How "warmup works" is proven**: not by watching it run, but by the fact that **turning it off must reveal a cold window**. The fixture `scripts/test-warmup-negctl.mjs` is exactly that negative control:
+
+```
+scenario       first-screen   cold starts   sources
+warmup on          1 ms            0           10
+warmup off       159 ms           10           10
+```
+
+**Sharding is parameterised**: adding a data source means adding one entry to the source list in `lib/state.js` (`{ id, label, group, deps, timeoutMs, run, describe }`) — **not a single line of the assembly flow changes**. A downstream plugin can also call `registerSource()` at runtime to hang its own health shard into this panel (the fixtures verify exactly that).
+
+**Footer SLI line** (`state.sli`): fetch time (per source + total) · hit rate (hit / miss / cold start kept apart) · degradation count (per source) · warmup state. There is no second dashboard.
 
 ## 6. Compatibility
 
@@ -171,15 +207,22 @@ DSH_ECOSYSTEM_PANEL_CONFIG=/path/to/my.config.json   # points at the copy you ed
 ## 8. Repository layout
 
 ```
-lib/index.js          server side: registers the read-only route
-lib/state.js          the six-class aggregation logic (every data source goes through the config layer and degrades explicitly)
+lib/index.js          server side: registers the read-only route and starts the warmer (route and warmer share one fetch lane)
+lib/state.js          the six-class aggregation logic + **the (parameterised) source list** + first-screen assembly (every data source goes through the config layer and degrades explicitly)
+lib/fetch-lane.js     the fetch lane: TTL cache + SWR / single-flight / timeout budget / partial degradation / SLI counters
+lib/warmup.js         periodic warmup (off by default; three environment-variable ports; only the five purely local sources by default)
 lib/upgrade.js        ⑤ the upgrade check (local facts + npm cache → external read-only CLI → rendering)
-lib/config.js         the config layer (precedence resolution + placeholder expansion + provenance self-attestation)
+lib/config.js         the config layer (precedence resolution + placeholder expansion + provenance self-attestation + fetch policy)
 lib/host-protocol.js  host protocol constants (this plugin uses only the single service name webServer)
-lib/client.js         browser side: sidebar button + panel (zero imports)
+lib/client.js         browser side: sidebar button + panel + stale-value banner + footer SLI (zero imports)
 cordis.patch.yml      bundle patch (mounts the plugin into the host)
 scripts/verify-source.mjs   pre-release static verification (syntax + config-layer behaviour + sanitization scan)
 scripts/test-fixture.mjs    end-to-end fixture on a clean temporary path (with assertions for degradation on missing data)
+scripts/test-swr.mjs           fixture ①: stale-first value / cold start blocks for the real value and records coldMiss
+scripts/test-warmup-negctl.mjs fixture ②: warmup negative control (turning it off must reveal the cold window)
+scripts/test-singleflight.mjs  fixture ③: concurrent requests to one source ⇒ the source is called once
+scripts/test-degrade.mjs       fixture ④: a bad source only breaks its own cell; the rest renders and the total is not dragged
+scripts/sim-selfcheck.mjs      line-level same-source check for new files (< 50% to pass)
 scripts/verify-state.mjs    read-only state verifier (no GUI needed)
 examples/                   five configuration examples
 docs/RELEASING.md           release conventions and checklist
@@ -190,7 +233,14 @@ docs/RELEASING.md           release conventions and checklist
 ```bash
 node scripts/verify-source.mjs .    # syntax + config-layer behaviour + sanitization scan (must be run before a release)
 node scripts/test-fixture.mjs       # end-to-end fixture: needs no real installation, everything is built in a temporary directory
-node scripts/verify-state.mjs       # read-only health check of the current instance (prints the six classes + configuration provenance)
+node scripts/test-swr.mjs           # first-screen item ①: SWR
+node scripts/test-warmup-negctl.mjs # first-screen item ②: warmup negative control (off must reveal the cold window)
+node scripts/test-singleflight.mjs  # first-screen item ③: single-flight
+node scripts/test-degrade.mjs       # first-screen item ③: sharding + timeout budget + partial degradation
+node scripts/sim-selfcheck.mjs --since <commit>   # line-level same-source ratio of new files (< 50% to pass)
+node scripts/verify-state.mjs       # read-only health check of the current instance (six classes + provenance + three-bucket hit rate)
+# or all at once:
+npm run test:all
 ```
 
 `test-fixture.mjs` builds a minimal data root on the spot (a fake profile / fake plugin entities / fake skills / four external tool stubs), asserts that all six classes produce a result, and specifically verifies that "missing data always degrades explicitly".

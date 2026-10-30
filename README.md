@@ -41,6 +41,7 @@ GET /api/dsh-ecosystem-panel/state
 设计依据（对应文档仓约定的固定四问）：
 
 - **它为什么存在、边界在哪** → 见《只读监控面板的设计纪律》**§1 面板要回答的问题**、**§2 显示纪律（不可探测 + 原因）**；本组件的六类体检正是那份纪律的一次落地
+- **首屏怎么取数（SWR / 周期预热 / 分片 + 单飞 + 超时预算 + 局部降级）** → 见《只读监控面板的设计纪律》**§3.2「处置：分片 + TTL + 单飞 + 超时预算」**（**TTL = 300 s** 的出处就在这一节：「复用既有五分钟节奏，不新增定时作业」）；同篇 §3.2 末尾「缓存只走 TTL + 单飞、不加 HTTP 缓存协商」也是本实现的取舍依据（见本 README §5.1）
 - **它与宿主版本的兼容区间** → 见《多机交接与云中继》**§4.5「兼容性要求」**（另见本 README 第 6 节「兼容性」）
 - **本组件特有的坑与实测** → 见本 README「已知限制」一节；另见《只读监控面板的设计纪律》**§7 设计教训汇总**（三次"静默不报"的来历）
 - **文档仓地址** → Gitee（镜像）<https://gitee.com/kira905/ops-handoff-design>
@@ -89,7 +90,7 @@ npm install @kira905/dsh-ecosystem-panel --prefix "<数据根>/profiles/web"
 #   "<数据根>/profiles/web/node_modules/@kira905/dsh-ecosystem-panel"
 
 # ② 注册：profile 的 package.json 里
-#      "dependencies": 加一条  "@kira905/dsh-ecosystem-panel": "0.4.4"
+#      "dependencies": 加一条  "@kira905/dsh-ecosystem-panel": "0.5.0"
 #      "dsh.profile.bundles": 数组里加 "@kira905/dsh-ecosystem-panel"
 
 # ③ 重启 DSH（本插件没有热加载），然后打开 GUI：侧边栏齿轮上方应出现面板按钮
@@ -130,6 +131,13 @@ node "<数据根>/profiles/web/node_modules/@kira905/dsh-ecosystem-panel/scripts
 | `DSH_ECOSYSTEM_PANEL_LABELS_FILE` | 包名 → 一句话简介 JSON | 空（没登记的包只是没有简介） |
 | `DSH_ECOSYSTEM_PANEL_DISABLED_GROUPS` | 整组停用的类目（逗号分隔） | 全开 |
 | `DSH_ECOSYSTEM_PANEL_WEBSERVER_SERVICE` | 宿主 web server 服务名 | `webServer` |
+| `DSH_ECOSYSTEM_PANEL_TTL_MS` | 「过期」阈值（数据块 `fetchedAt` 与它的差） | `300000`（300 s，见 §5.1） |
+| `DSH_ECOSYSTEM_PANEL_SOURCE_TIMEOUT_MS` | 单源缺省超时 | `2000` ms |
+| `DSH_ECOSYSTEM_PANEL_TOTAL_BUDGET_MS` | 一次首屏的总预算 | `10000` ms |
+| `DSH_ECOSYSTEM_PANEL_SOURCE_TIMEOUTS` | 逐源覆盖单源超时，形如 `boot=1500,skills=500` | 空（用单源缺省） |
+| `DSH_ECOSYSTEM_PANEL_WARMUP` | 周期预热开关（`1/true/on` 开） | `0`（**关**：后台常驻要花资源，不替使用者决定） |
+| `DSH_ECOSYSTEM_PANEL_WARMUP_MS` | 预热周期（< 5000 会被压到 5000；0/负数回缺省） | `300000`（300 s，与 TTL 同源） |
+| `DSH_ECOSYSTEM_PANEL_WARMUP_SOURCES` | 预热哪些源（逗号分隔；`*` = 全部） | `boot,bundles,inserts,patches,skills`（纯本地五源） |
 
 ### 4.2 配置文件与示例
 
@@ -161,9 +169,50 @@ DSH_ECOSYSTEM_PANEL_CONFIG=/path/to/my.config.json   # 指向你抄过去改的�
 ## 5. 界面
 
 - 六类各占一张标签卡（Tab），Tab 上的小圆点 = 该类最差状态（红 > 黄 > 绿）
-- 点「刷新」会重新取数；`GET /state?refresh=1` 强制重查 npm 最新版（否则 24h 缓存）
+- 点「刷新」会重新取数；`GET /state?refresh=1` 强制重查 npm 最新版（否则 24h 缓存）；
+  `GET /state?refresh=all` 整屏丢缓存重取（排障用，别日常按）
 - 颜色：🟢 正常 / 🟡 风险或不可判定 / 🔴 异常（比如 patch insert 的实体缺失）
 - 面板底部说明与标题可由配置覆盖（`text.title` / `text.note` / `text.tabs`，服务端经 `meta.ui` 下发）
+
+### 5.1 首屏为什么不转圈（SWR / 周期预热 / 分片取数）
+
+只读面板的首屏有三个常见坏毛病，本版各配一个处方，读数全部落在页脚那一行：
+
+| 坏毛病 | 处方 | 你能看到什么 |
+|---|---|---|
+| ① 数据过期了就得干等刷新（转圈） | **SWR**：数据块自带 `fetchedAt`，过期判据 = `now - fetchedAt > 阈值`（缺省 **300 s**）；过期时**先把旧值渲染出去**，同时后台刷新，刷回来再替换 | 面板顶部一条「🕗 这是旧值：skills 旧了 320 s（后台正在换新，刷回来自动替换）」；页面不转圈 |
+| ② 每次冷启动都从零算（慢） | **周期预热**：可配周期 + 三个环境变量口；**缺省关闭**，开了就先填一遍再按周期续 | 页脚「预热 开 · 300 s · 已跑 N 次」；关掉时页脚写「预热 关」 |
+| ③ 某一个源挂了/超时，整页跟着废 | **分片 + 单飞 + 超时预算 + 局部降级**：源清单是参数化的、同一源同一时刻只有一次在途取数、每源一个超时 + 整页一个总预算；坏源**只坏那一格** | 那一格变成「不可探测：超时 / 报错 / 未配置 / 总预算耗尽」，其余照出，整页仍然 200 |
+
+**为什么阈值是 300 s**：复用体系里既有的五分钟节奏，**不新增定时作业** —— 出处是文档仓
+《只读监控面板的设计纪律》**§3.2**（见「设计依据」节）。想改就改 `ttlMs`，但别在代码里另写一个数。
+
+**为什么预热缺省关**：预热是"后台常驻"的动作，会替你花资源；默认替你决定不合适。开了以后
+缺省只预热**纯本地的五源**（`boot / bundles / inserts / patches / skills`）——
+`decoupling / upgrades / registry` 要跑外部脚本或查 npm，不进缺省预热（要就自己在
+`DSH_ECOSYSTEM_PANEL_WARMUP_SOURCES` 里点名，或写 `*` 全预热）。
+
+**冷启动不许返回空壳**：没有任何旧值时，这一次**阻塞取真值**，并单独记成 SLI 的 `coldMiss`
+（不记的话"命中率"会把冷启动算成命中，读数就废了）。页脚的三桶永远是分开的：
+`命中 12（70.6%）· 未命中 3 · 冷启 2`。
+
+**"预热生效"怎么证明**：不是看它跑没跑，而是**关掉它必须看得见冷窗**。夹具
+`scripts/test-warmup-negctl.mjs` 就是这条阴性对照，读数形如：
+
+```
+场景         首屏耗时   首屏冷启动  源数
+预热开         1 ms         0         10
+预热关         159 ms       10        10
+```
+
+（开 = 全部命中缓存；关 = 首屏自己冷取 10 个源，其中那个 150 ms 的慢源躲不掉。）
+
+**分片是参数化的**：新增数据源 = 在 `lib/state.js` 的源清单里加一条
+（`{ id, label, group, deps, timeoutMs, run, describe }`），**装配主流程一行都不用改**；
+下游插件也可以在运行时 `registerSource()` 把自己的健康片挂进这块面板（夹具里就是这么验的）。
+
+**页脚 SLI 一行**（`state.sli`）：取数耗时（每源 + 总）· 命中率（命中 / 未命中 / 冷启动分开）·
+降级次数（每源）· 预热状态。不做第二套仪表盘。
 
 ## 6. 兼容性
 
@@ -191,15 +240,22 @@ DSH_ECOSYSTEM_PANEL_CONFIG=/path/to/my.config.json   # 指向你抄过去改的�
 ## 8. 仓结构
 
 ```
-lib/index.js          服务端：注册只读 route
-lib/state.js          六类聚合逻辑（每个数据源都走配置层 + 显式降级）
+lib/index.js          服务端：注册只读 route + 起预热器（route 与预热共用同一条取数车道）
+lib/state.js          六类聚合逻辑 + **数据源清单（参数化）** + 首屏装配（每个数据源都走配置层 + 显式降级）
+lib/fetch-lane.js     取数车道：TTL 缓存 + SWR / 单飞 / 超时预算 / 局部降级 / SLI 计数
+lib/warmup.js         周期预热（缺省关；三个环境变量口；缺省只预热纯本地五源）
 lib/upgrade.js        ⑤ 升级体检（本地事实 + npm 缓存 → 外部只读 CLI → 渲染）
-lib/config.js         配置层（优先级解析 + 占位符展开 + 来源自证）
+lib/config.js         配置层（优先级解析 + 占位符展开 + 来源自证 + 取数策略）
 lib/host-protocol.js  宿主协议常量（本插件只用 webServer 一个服务名）
-lib/client.js         浏览器端：侧边栏按钮 + 面板（零 import）
+lib/client.js         浏览器端：侧边栏按钮 + 面板 + 旧值提示 + 页脚 SLI（零 import）
 cordis.patch.yml      bundle patch（把插件挂到宿主）
 scripts/verify-source.mjs  发布前静态验证（语法 + 配置层行为 + 脱敏扫描）
 scripts/test-fixture.mjs   干净临时路径上的端到端夹具（含缺数据降级断言）
+scripts/test-swr.mjs           夹具①：过期先给旧值 / 冷启动阻塞取真值并记 coldMiss
+scripts/test-warmup-negctl.mjs 夹具②：预热阴性对照（关掉预热必须看得见冷窗）
+scripts/test-singleflight.mjs  夹具③：并发打同一源 ⇒ 源侧只被调用一次
+scripts/test-degrade.mjs       夹具④：坏源只坏那一格、其余照出、总耗时不被拖爆
+scripts/sim-selfcheck.mjs      新文件行级同源度自查（< 50% 通过）
 scripts/verify-state.mjs   只读状态验证器（不依赖 GUI）
 examples/                  五份配置示例
 docs/RELEASING.md          发版规范与检查单
@@ -210,7 +266,14 @@ docs/RELEASING.md          发版规范与检查单
 ```bash
 node scripts/verify-source.mjs .    # 语法 + 配置层行为 + 脱敏扫描（发布前必跑）
 node scripts/test-fixture.mjs       # 端到端夹具：不需要任何真实安装，全在临时目录里造
-node scripts/verify-state.mjs       # 对当前实例只读体检（打印六类 + 配置来源）
+node scripts/test-swr.mjs           # 首屏三件之①：SWR
+node scripts/test-warmup-negctl.mjs # 首屏三件之②：预热阴性对照（关掉必须看得见冷窗）
+node scripts/test-singleflight.mjs  # 首屏三件之③：单飞
+node scripts/test-degrade.mjs       # 首屏三件之③：分片 + 超时预算 + 局部降级
+node scripts/sim-selfcheck.mjs --since <commit>   # 新文件行级同源度（< 50% 通过）
+node scripts/verify-state.mjs       # 对当前实例只读体检（打印六类 + 配置来源 + 三桶命中率）
+# 或者一把梭：
+npm run test:all
 ```
 
 `test-fixture.mjs` 会现场造一个最小数据根（假 profile / 假插件实体 / 假技能 / 四个外部工具 stub），
