@@ -1,5 +1,22 @@
 # dsh-ecosystem-panel
 
+> ### 这是什么
+> **一个只读的「生态体检」面板插件**：bundle / patch / skill / 升级 / 解耦，一屏看完。
+>
+> ### 它解决什么
+> 装了十几个插件之后，"到底挂上了没、有没有重复挂、谁的补丁和谁打架"会变成玄学。这个面板只做一件事：把六类体检结果摊在一屏上，**全是只读**，不会替你改任何东西。首屏还有 SWR 与周期预热（旧值先出、不转圈），以及一页脚 SLI 告诉你"这屏数据多久之前采的"。
+>
+> ### 一条命令跑起来
+> ```powershell
+> dsh plugin --profile web add @kira905/dsh-ecosystem-panel
+> ```
+> 装完在侧边栏进入面板；不用改 `cordis.patch.yml`。
+>
+> ### 它长什么样
+> 一屏六组卡片（每个插件一行状态 + 一句诊断理由），页脚一行采样时间与耗时。⚠️ 本仓**暂无截图**。
+
+---
+
 > **本仓装完即用**：`dsh plugin --profile <profile> add @kira905/dsh-ecosystem-panel` 一条命令，`dsh.bundle` 会让它自动挂进 profile 的组合列表，**不需要再手工写 `cordis.patch.yml`**。
 
 ## 装完自检（三条只读验法）
