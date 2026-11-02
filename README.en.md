@@ -1,5 +1,22 @@
 # dsh-ecosystem-panel
 
+> ### What this is
+> **A read-only ecosystem health panel plugin**: bundle / patch / skill / upgrade / decoupling, all in one view.
+>
+> ### What it solves
+> With a dozen plugins installed, questions like "did it actually mount, is it mounted twice, whose patch is fighting whose" turn into folklore. This panel does exactly one thing: lay six kinds of diagnosis on a single screen, **all read-only** — it never changes anything for you. The first paint uses SWR plus periodic warm-up (show the old value immediately instead of spinning), and a footer SLI tells you how old the data is.
+>
+> ### Run it in one command
+> ```powershell
+> dsh plugin --profile web add @kira905/dsh-ecosystem-panel
+> ```
+> Then open the panel from the sidebar; no `cordis.patch.yml` editing.
+>
+> ### What it looks like
+> Six card groups (one row per plugin with a one-line diagnosis) plus a footer with sample time and duration. ⚠️ **No screenshot yet.**
+
+---
+
 > **Status**: published on npm as `@kira905/dsh-ecosystem-panel` (repository Releases remain available)
 > **Repository**: <https://github.com/kira905/dsh-ecosystem-panel> ｜ <https://gitee.com/kira905/dsh-ecosystem-panel>
 > **License**: AGPL-3.0-only — see [`LICENSE`](./LICENSE)
