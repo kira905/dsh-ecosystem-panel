@@ -232,7 +232,11 @@ console.log('\n=== [1b] 客户端装配：名字对不上 / 实体缺失 / 外�
   const cNm = path.join(cProfile, 'node_modules');
   writeJson(path.join(cProfile, 'package.json'), {
     name: 'client-fixture', version: '0.0.0', dependencies: {},
-    dsh: { profile: { bundles: ['ok-plugin', '@fixture/mismatch-plugin', 'ghost-plugin'] } }
+    dsh: {
+      profile: {
+        bundles: ['ok-plugin', '@fixture/mismatch-plugin', 'ghost-plugin', 'dual-owner', '@fixture/dual-dep']
+      }
+    }
   });
   // ① 阴性对照：完全健康的包（patch 里的 name = 自己的真名）—— 不该产出任何一行
   writeJson(path.join(cNm, 'ok-plugin', 'package.json'), {
@@ -256,7 +260,21 @@ console.log('\n=== [1b] 客户端装配：名字对不上 / 实体缺失 / 外�
   // 刻意写错名字（不带 scope），并让它落在第 3 行 —— 断言"给人话行号"用得上
   write(path.join(cNm, '@fixture', 'mismatch-plugin', 'cordis.patch.yml'),
     '[\n  {"insert":[\n    {"id":"mismatch-panel","name":"mismatch-plugin"}\n  ]}\n]\n');
-  // ③ 实体缺失：组合列表里有、node_modules 里没有
+  // ③ 实体缺失：组合列表里有、node_modules 里没有（ghost-plugin）
+  // ④ 同一条 external 里同时列真名与裸名，且真名那份装着、也挂了 —— 不许报红
+  //    （典型形态：代码先试 @s/x，裸名那条只是历史残留；判红就是假阳性）
+  writeJson(path.join(cNm, 'dual-owner', 'package.json'), {
+    name: 'dual-owner', version: '1.0.0',
+    exports: { './client': './lib/client.js' },
+    dsh: { client: { platform: 'web', inject: [], external: ['@fixture/dual-dep', 'dual-dep'] } }
+  });
+  write(path.join(cNm, 'dual-owner', 'lib', 'client.js'), '/* bundle */\n');
+  writeJson(path.join(cNm, '@fixture', 'dual-dep', 'package.json'), {
+    name: '@fixture/dual-dep', version: '1.0.0',
+    exports: { './client': './lib/client.js' },
+    dsh: { client: { platform: 'web', inject: [], external: [] } }
+  });
+  write(path.join(cNm, '@fixture', 'dual-dep', 'lib', 'client.js'), '/* bundle */\n');
   const cfg2 = { home: cHome, profile: 'probe', toolsDir, mainNm, webUrl: 'http://127.0.0.1:1' };
   const s2c = await stateMod.buildState({ config: cfg2 });
   const rows = s2c.groups.client ?? [];
@@ -267,6 +285,8 @@ console.log('\n=== [1b] 客户端装配：名字对不上 / 实体缺失 / 外�
     String(s2c.meta.profileDir).endsWith(path.join('profiles', 'probe')) && s2c.meta.profileName === 'probe',
     String(s2c.meta.profileDir));
   ok('⑧ 健康包（阴性对照）不产出任何行', !rows.some((r) => /ok-plugin/.test(JSON.stringify(r))), JSON.stringify(rows.map((r) => r.title)));
+  ok('⑧ 同一条 external 里列了真名（那份装着且挂了）⇒ 裸名那条不报红（反假阳性）',
+    !rows.some((r) => /dual-owner|dual-dep/.test(r.title)), JSON.stringify(rows.map((r) => r.title)));
   const missEntity = rows.find((r) => /缺模块/.test(r.title));
   ok('⑧ 实体缺失 → 红，且点名该恢复哪个目录', missEntity?.status === 'red' && missEntity.problems.join(' ').includes('node_modules'),
     missEntity?.title);
