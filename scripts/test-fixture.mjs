@@ -266,9 +266,15 @@ console.log('\n=== [1b] 客户端装配：名字对不上 / 实体缺失 / 外�
   writeJson(path.join(cNm, 'dual-owner', 'package.json'), {
     name: 'dual-owner', version: '1.0.0',
     exports: { './client': './lib/client.js' },
-    dsh: { client: { platform: 'web', inject: [], external: ['@fixture/dual-dep', 'dual-dep'] } }
+    // ⑤ dsh.bundle.patch 写成**数组**（宿主 dsh-base 就是这么写的）—— 不许抛，也不许漏扫
+    dsh: {
+      bundle: { patch: ['./cordis.patch.yml', './cordis.patch2.yml'] },
+      client: { platform: 'web', inject: [], external: ['@fixture/dual-dep', 'dual-dep'] }
+    }
   });
   write(path.join(cNm, 'dual-owner', 'lib', 'client.js'), '/* bundle */\n');
+  write(path.join(cNm, 'dual-owner', 'cordis.patch.yml'), '[{"insert":[{"id":"dual-owner","name":"dual-owner"}]}]\n');
+  write(path.join(cNm, 'dual-owner', 'cordis.patch2.yml'), '[{"insert":[{"id":"dual-owner-2","name":"dual-owner"}]}]\n');
   writeJson(path.join(cNm, '@fixture', 'dual-dep', 'package.json'), {
     name: '@fixture/dual-dep', version: '1.0.0',
     exports: { './client': './lib/client.js' },
