@@ -217,6 +217,73 @@ ok('面板版本从自身 package.json 读（不写死）', /^\d+\.\d+\.\d+$/.te
 ok('配置来源自证里 toolsDir 标为 cli 层', s1.meta.config.toolsDir.from === 'cli', String(s1.meta.config.toolsDir.from));
 ok('配置期无错误', Array.isArray(s1.meta.configErrors) && s1.meta.configErrors.length === 0, JSON.stringify(s1.meta.configErrors));
 
+ok('⑧ 客户端装配类目存在（0.5.2 新增）', Array.isArray(s1.groups.client), typeof s1.groups.client);
+{
+  const cRow = s1.groups.client.find((r) => /缺声明/.test(r.title));
+  ok('⑧ 声明了 dsh.client 却没有 exports["./client"] → 红 + 指出改哪个文件',
+    cRow?.status === 'red' && /package\.json/.test(cRow.problems.join(' ')), cRow?.title);
+}
+
+// ---------------------------------------------------------------- [1b] 客户端装配：四类病灶 + 阴性对照
+console.log('\n=== [1b] 客户端装配：名字对不上 / 实体缺失 / 外部依赖对不上，各给三段 ===');
+{
+  const cHome = path.join(sandbox, 'client-home');
+  const cProfile = path.join(cHome, 'profiles', 'probe');   // 故意不叫 web：顺带验"读当前 profile"口径
+  const cNm = path.join(cProfile, 'node_modules');
+  writeJson(path.join(cProfile, 'package.json'), {
+    name: 'client-fixture', version: '0.0.0', dependencies: {},
+    dsh: { profile: { bundles: ['ok-plugin', '@fixture/mismatch-plugin', 'ghost-plugin'] } }
+  });
+  // ① 阴性对照：完全健康的包（patch 里的 name = 自己的真名）—— 不该产出任何一行
+  writeJson(path.join(cNm, 'ok-plugin', 'package.json'), {
+    name: 'ok-plugin', version: '1.0.0',
+    exports: { './client': './lib/client.js' },
+    dsh: { bundle: { patch: './cordis.patch.yml' }, client: { platform: 'web', inject: [], external: [] } }
+  });
+  write(path.join(cNm, 'ok-plugin', 'lib', 'client.js'), '/* bundle */\n');
+  // 夹具的 js-yaml 被 stub 成 JSON.parse ⇒ 这三份 patch 用 flow（JSON）写法，两种解析器都吃得下
+  write(path.join(cNm, 'ok-plugin', 'cordis.patch.yml'), '[{"insert":[{"id":"ok-plugin","name":"ok-plugin"}]}]\n');
+  // ② 名字对不上：包名带 scope，自带 patch 里写的是不带 scope 的旧名（= 2026-11-09 实测的真凶）
+  writeJson(path.join(cNm, '@fixture', 'mismatch-plugin', 'package.json'), {
+    name: '@fixture/mismatch-plugin', version: '1.0.0',
+    exports: { './client': './lib/client.js' },
+    dsh: {
+      bundle: { patch: './cordis.patch.yml' },
+      client: { platform: 'web', inject: [], external: ['ghost-external'] }
+    }
+  });
+  write(path.join(cNm, '@fixture', 'mismatch-plugin', 'lib', 'client.js'), '/* bundle */\n');
+  // 刻意写错名字（不带 scope），并让它落在第 3 行 —— 断言"给人话行号"用得上
+  write(path.join(cNm, '@fixture', 'mismatch-plugin', 'cordis.patch.yml'),
+    '[\n  {"insert":[\n    {"id":"mismatch-panel","name":"mismatch-plugin"}\n  ]}\n]\n');
+  // ③ 实体缺失：组合列表里有、node_modules 里没有
+  const cfg2 = { home: cHome, profile: 'probe', toolsDir, mainNm, webUrl: 'http://127.0.0.1:1' };
+  const s2c = await stateMod.buildState({ config: cfg2 });
+  const rows = s2c.groups.client ?? [];
+  ok('⑧ 计数口径不变：client 类不进顶栏分母',
+    s2c.summary.total === (s2c.groups.bundles ?? []).length + (s2c.groups.inserts ?? []).length + (s2c.groups.patches ?? []).length + (s2c.groups.skills ?? []).length + (s2c.groups.decoupling ?? []).length,
+    JSON.stringify(s2c.summary));
+  ok('⑧ 读到的是「当前 profile」（probe），不是写死的 web',
+    String(s2c.meta.profileDir).endsWith(path.join('profiles', 'probe')) && s2c.meta.profileName === 'probe',
+    String(s2c.meta.profileDir));
+  ok('⑧ 健康包（阴性对照）不产出任何行', !rows.some((r) => /ok-plugin/.test(JSON.stringify(r))), JSON.stringify(rows.map((r) => r.title)));
+  const missEntity = rows.find((r) => /缺模块/.test(r.title));
+  ok('⑧ 实体缺失 → 红，且点名该恢复哪个目录', missEntity?.status === 'red' && missEntity.problems.join(' ').includes('node_modules'),
+    missEntity?.title);
+  const mismatch = rows.find((r) => /插件挂载不上/.test(r.title));
+  ok('⑧ patch 里的 name 对不上 → 红，且点名文件与真名',
+    mismatch?.status === 'red' && /cordis\.patch\.yml/.test(mismatch.problems[0]) && /@fixture\/mismatch-plugin/.test(mismatch.problems[0]),
+    mismatch?.problems?.[0]);
+  ok('⑧ patch 里的 name 对不上 → 给人话行号（第 3 行）', /第 3 行/.test(mismatch?.problems?.[0] ?? ''), mismatch?.problems?.[0]);
+  const extRow = rows.find((r) => /外部依赖/.test(r.title));
+  ok('⑧ external 指向没人装的包 → 红，且说清该改哪个文件的哪个字段',
+    extRow?.status === 'red' && /dsh\.client\.external/.test(extRow.problems[0]), extRow?.problems?.[0]);
+  ok('⑧ 每条红项都带齐三段（一句"缺什么" + 至少两条"该改/怎么验"）',
+    rows.length > 0 && rows.every((r) => typeof r.description === 'string' && r.description.length > 0 && Array.isArray(r.problems) && r.problems.length >= 2),
+    JSON.stringify(rows.map((r) => ({ t: r.title, p: r.problems.length }))));
+  fs.rmSync(cHome, { recursive: true, force: true });
+}
+
 // ---------------------------------------------------------------- [2] 缺数据态：必须显式降级
 console.log('\n=== [2] 缺数据态：不可探测 + 原因（绝不 0 / 假绿）===');
 const s2 = await stateMod.buildState({ config: { home, webUrl: 'http://127.0.0.1:1' } });

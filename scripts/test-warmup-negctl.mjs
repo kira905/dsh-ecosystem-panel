@@ -136,7 +136,9 @@ ok('预热开：预热器真的跑过一次，且把源都填好了',
   ON.warmStatus?.runs === 1 && Object.values(ON.warmStatus?.lastSources ?? {}).every((v) => v.status === 'cold' || v.status === 'fresh'),
   `runs=${ON.warmStatus?.runs} sources=${Object.keys(ON.warmStatus?.lastSources ?? {}).length}`);
 ok('预热开：首屏耗时不含慢源（命中即回，几毫秒级）', ON.totalMs < 50, `${ON.totalMs} ms`);
-ok('预热开：整屏仍照常出（不是靠少取数换来的快）', ON.skills === 2 && ON.srcStatuses.length === 10,
+// 源数：0.5.2 起多了一类「客户端装配」（client）⇒ 10 → 11。
+// 这里钉的是"整屏照常出、不是靠少取数换来的快"，所以数字要与 listSources() 的条数一起改。
+ok('预热开：整屏仍照常出（不是靠少取数换来的快）', ON.skills === 2 && ON.srcStatuses.length === 11,
   `skills=${ON.skills} sources=${ON.srcStatuses.length}`);
 
 ok('🔴 预热关：冷窗确实出现（首屏 coldMiss = 源数）', OFF.coldMissDelta === OFF.srcStatuses.length,

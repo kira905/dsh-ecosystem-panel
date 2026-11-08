@@ -2,6 +2,40 @@
 
 本仓遵循 [SemVer](https://semver.org/lang/zh-CN/)：使用者可见的行为变化才升主版本/次版本，纯内部重构走修订号。
 
+## [0.5.2] - 2026-11-09
+
+### 变更（使用者可见）
+
+- **默认读"正在跑的那个 profile"，不再写死 `web`。** 桌面版（Electron）用的是
+  `<数据根>/profiles/desktop`：过去本面板永远只读 `profiles/web`，于是在桌面版上把某个包
+  改坏，面板读数**一个数都不变**（2026-11-09 A-8 关 4 实测，受控破坏前后都是
+  45 正常 / 21 风险 / 0 异常 / 66 项）。取值链：显式配置（cli/env/配置文件）＞
+  宿主报的 `profileContext` ＞ 默认 `web`；标题里现在写着 `（profile: desktop）`，
+  不翻源码就能看出它读的是谁。
+- **新增「客户端装配」类目**（第七张标签页，`GET /state` 的 `groups.client`）。这一类专门抓
+  "文件全在、读数全绿、界面上却什么都没有"的那一类坏法，每条红项都给**三段**：
+  **缺什么 / 该改哪个文件（或装哪个包）/ 改完怎么验证**。四类病灶：
+  1. 组合列表（`dsh.profile.bundles`）里有、`node_modules` 里没有实体目录；
+  2. 包自带的 `cordis.patch.yml` 里 `name:` 与自己的 `package.json#name` 不一致
+     （**这就是 2026-11-09 那个"装完侧边栏没有管家面板、且没有任何报错"的真凶**：
+     宿主解析不到那一行 ⇒ 宿主半不挂 ⇒ 它的 `dsh.client` 也不会进 boot graph）；
+  3. 声明了 `dsh.client` 却没有 `exports["./client"]`、或指向的浏览器 bundle 不存在；
+  4. `dsh.client.external` 里的名字不等于任何已装包的 `package.json#name`
+     （同步 `require` 必 MISS ⇒ 整个客户端 bundle 在 factory 顶层就抛）。
+  判定**全离线**（不抓 boot、不联网）：boot 图里有没有那一行，取决于"宿主半挂没挂"，
+  而挂没挂由组合列表 + 自带 patch 的 name 解析结果决定，两样都在磁盘上。
+
+### 不变
+
+- 顶栏那行「N 正常 / N 风险 / N 异常」的**分母不变**（仍是 bundles / inserts / patches /
+  skills / decoupling 五类）：新增类目只在自己的标签页上有计数，历史读数可与旧版直接比。
+- API 形状向后兼容：只新增 `groups.client` 与 `meta.profileName`，没有删除或改语义。
+
+### 夹具
+
+- `test-fixture.mjs` 新增 [1b] 段：四类病灶各一条 + **阴性对照**（完全健康的包不得产出任何行），
+  含"给人话行号"（patch 第 N 行）与"每行必须带齐三段"的断言；通过数 50 → 60。
+
 ## [0.5.1] - 2026-11-06
 
 ### 变更（使用者可见）
