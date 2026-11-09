@@ -10,7 +10,7 @@
 > ```powershell
 > dsh plugin --profile web add @kira905/dsh-ecosystem-panel
 > ```
-> 装完在侧边栏进入面板；不用改 `cordis.patch.yml`。
+> 装完在侧边栏进入面板；不用改 `cordis.patch.yml`（DSH 读的插件挂载清单）。
 >
 > ### 它长什么样
 > 一屏六组卡片（每个插件一行状态 + 一句诊断理由），页脚一行采样时间与耗时。⚠️ 本仓**暂无截图**。
@@ -34,11 +34,11 @@
 
 ---
 
-> **本仓装完即用**：`dsh plugin --profile <profile> add @kira905/dsh-ecosystem-panel` 一条命令，`dsh.bundle` 会让它自动挂进 profile 的组合列表，**不需要再手工写 `cordis.patch.yml`**。
+> **本仓装完即用**：`dsh plugin --profile <profile> add @kira905/dsh-ecosystem-panel` 一条命令，`dsh.bundle`（插件 `package.json` 里那行「让 DSH 启动时自动挂上我」的声明）会让它自动挂进 profile 的组合列表，**不需要再手工写 `cordis.patch.yml`**。
 
 ## 装完自检（三条只读验法）
 
-`<profile>` 换成你实际用的 profile（默认 `web`），`<数据根>` 换成你的 DSH 数据根（默认 `~/.dsh`）。
+`<profile>` 换成你实际用的 profile（放插件的那个格子，默认 `web`），`<数据根>` 换成你的 DSH 数据根（默认 `~/.dsh`）。
 
 ```powershell
 # ① 组合树里有没有它（只读、约 0.6 秒、不启服务）
